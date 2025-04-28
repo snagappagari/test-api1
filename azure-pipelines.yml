@@ -6,13 +6,11 @@ pool:
 
 variables:
   imageName: 'test-api1'  # Docker image name
-  acrLoginServer: 'acrallnew.azurecr.io'  # ACR login server URL
   tag: '$(Build.BuildId)'  # Image tag based on build ID
   azureSubscription: 'sc-new'  # Your Azure service connection name
-  acrName: 'acrallnew'  # ACR name
   resourceGroup: 'devops-connection'  # Resource group where AKS is located
   aksCluster: 'aks-all'  # AKS cluster name
-  containerRegistry: '$(acrLoginServer)'  # Full ACR login server URL
+  dockerServiceConnection: 'dsc'  # Docker service connection name
   dockerfilePath: './Dockerfile'  # Path to your Dockerfile
   kubernetesNamespace: 'default'  # Kubernetes namespace for deployment
   deploymentFile: 'deployment.yaml'  # Path to your Kubernetes deployment YAML file
@@ -27,13 +25,7 @@ steps:
     repository: 'https://github.com/snagappagari/test-api1.git'
     ref: 'refs/heads/main'
 
-# Step 2: Set up Java environment
-- task: UseJavaToolInstaller@1
-  displayName: 'Set up Java'
-  inputs:
-    versionSpec: '17'  # Set the Java version (adjust if necessary)
-
-# Step 3: Build the project using Maven
+# Step 2: Build the project using Maven
 - task: Maven@3
   displayName: 'Build the project with Maven'
   inputs:
@@ -41,27 +33,27 @@ steps:
     goals: 'clean package $(mavenOptions)'  # Clean and package the project
     options: '-DskipTests'  # Optionally skip tests to speed up the build
 
-# Step 4: Build the Docker image
+# Step 3: Build the Docker image
 - task: Docker@2
   displayName: 'Build Docker Image'
   inputs:
     command: 'build'
-    containerRegistry: $(containerRegistry)  # ACR registry login
+    containerRegistry: '$(dockerServiceConnection)'  # Docker service connection
     repository: $(imageName)
     dockerfile: $(dockerfilePath)
     buildContext: $(Build.SourcesDirectory)  # Path to your project source
     tags: $(tag)  # Tag image with build ID
 
-# Step 5: Push Docker image to Azure Container Registry (ACR)
+# Step 4: Push Docker image to Azure Container Registry (ACR)
 - task: Docker@2
   displayName: 'Push Docker Image to ACR'
   inputs:
     command: 'push'
-    containerRegistry: $(containerRegistry)  # ACR registry login
+    containerRegistry: '$(dockerServiceConnection)'  # Docker service connection
     repository: $(imageName)
     tags: $(tag)
 
-# Step 6: Get AKS credentials and configure kubectl
+# Step 5: Get AKS credentials and configure kubectl
 - task: AzureCLI@2
   displayName: 'Get AKS Credentials'
   inputs:
@@ -72,7 +64,7 @@ steps:
       az aks get-credentials --resource-group $(resourceGroup) --name $(aksCluster)
     displayName: 'Get AKS credentials'
 
-# Step 7: Deploy to Kubernetes (AKS)
+# Step 6: Deploy to Kubernetes (AKS)
 - task: Kubernetes@1
   displayName: 'Deploy to Kubernetes (AKS)'
   inputs:
