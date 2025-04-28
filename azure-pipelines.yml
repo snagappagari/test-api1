@@ -6,13 +6,13 @@ pool:
 
 variables:
   imageName: 'test-api1'  # Docker image name
-  acrLoginServer: 'acrallnew.azurecr.io'  # ACR login server URL (if you use Azure ACR, otherwise ignore)
+  acrLoginServer: 'acrallnew.azurecr.io'  # ACR login server
   tag: '$(Build.BuildId)'  # Image tag based on build ID
   azureSubscription: 'sc-new'  # Your Azure service connection name
-  acrName: 'acrallnew'  # ACR name (if you use Azure ACR, otherwise ignore)
+  acrName: 'acrallnew'  # ACR name
   resourceGroup: 'devops-connection'  # Resource group where AKS is located
   aksCluster: 'aks-all'  # AKS cluster name
-  containerRegistry: 'dsc'  # Docker Hub service connection name
+  containerRegistry: '$(acrLoginServer)'  # ACR full login URL (no need for DockerHub)
   dockerfilePath: './Dockerfile'  # Path to your Dockerfile
   kubernetesNamespace: 'default'  # Kubernetes namespace for deployment
   deploymentFile: 'deployment.yaml'  # Path to your Kubernetes deployment YAML file
@@ -35,21 +35,21 @@ steps:
     goals: 'clean package $(mavenOptions)'  # Clean and package the project
     options: '-DskipTests'  # Optionally skip tests to speed up the build
 
-# Step 3: Authenticate to Docker Hub using service connection 'dsc'
-- task: Docker@2
-  displayName: 'Authenticate to Docker Hub'
+# Step 3: Install Node.js (if necessary, depending on project)
+- task: NodeTool@0
+  displayName: 'Install Node.js'
   inputs:
-    command: 'login'
-    containerRegistry: 'dsc'  # Docker Hub service connection 'dsc'
+    versionSpec: '20.x'  # Specify Node.js version
+    addToPath: true
 
-# Step 4: Build and push Docker image with multi-platform support (amd64 and arm64)
+# Step 4: Build and push Docker image to ACR with multi-platform support (amd64 and arm64)
 - script: |
     docker buildx create --use || true  # Create and use a builder instance if not already available
     docker buildx build --platform linux/amd64,linux/arm64 \
       -t $(acrLoginServer)/$(imageName):$(tag) \
       -t $(acrLoginServer)/$(imageName):latest \
-      --push .  # Push images to Docker Hub
-  displayName: 'Build and push multi-platform Docker image to Docker Hub'
+      --push .  # Push images to ACR
+  displayName: 'Build and Push Multi-Platform Docker Image to ACR'
 
 # Step 5: Get AKS credentials and configure kubectl
 - task: AzureCLI@2
@@ -60,16 +60,16 @@ steps:
     scriptLocation: 'inlineScript'
     inlineScript: |
       az aks get-credentials --resource-group $(resourceGroup) --name $(aksCluster)
-    displayName: 'Get AKS credentials'
 
 # Step 6: Deploy to Kubernetes (AKS)
 - task: Kubernetes@1
   displayName: 'Deploy to Kubernetes (AKS)'
   inputs:
     connectionType: 'Azure Resource Manager'
-    azureSubscription: $(azureSubscription)  # Azure service connection
+    azureSubscriptionEndpoint: $(azureSubscription)  # Azure service connection
     azureResourceGroup: $(resourceGroup)  # Resource group
     kubernetesCluster: $(aksCluster)  # AKS cluster name
     namespace: $(kubernetesNamespace)  # Kubernetes namespace
     command: 'apply'
-    arguments:
+    useConfigurationFile: true
+    configuration: $(deploymentFile)  # Path to your Kubernetes deployment file
