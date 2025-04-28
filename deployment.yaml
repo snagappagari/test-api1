@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-api1-deployment
+  namespace: default  # Specify your namespace here
+spec:
+  replicas: 1  # Adjust the number of replicas as needed
+  selector:
+    matchLabels:
+      app: test-api1
+  template:
+    metadata:
+      labels:
+        app: test-api1
+    spec:
+      containers:
+      - name: test-api1
+        image: acrallnew.azurecr.io/test-api1:$(Build.BuildId)  # ACR image with build ID
+        ports:
+        - containerPort: 8080  # Exposed port, change if necessary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-api1-service
+  namespace: default  # Specify your namespace here
+spec:
+  selector:
+    app: test-api1  # Match the deployment labels
+  ports:
+    - protocol: TCP
+      port: 80  # Expose on port 80 (internal/external)
+      targetPort: 8080  # Port the application is listening on
+  type: LoadBalancer  # Choose 'LoadBalancer' for external access, 'ClusterIP' for internal only, 'NodePort' for node access
