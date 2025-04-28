@@ -35,25 +35,21 @@ steps:
     goals: 'clean package $(mavenOptions)'  # Clean and package the project
     options: '-DskipTests'  # Optionally skip tests to speed up the build
 
-# Step 3: Build the Docker image
+# Step 3: Authenticate to Docker Hub using service connection 'dsc'
 - task: Docker@2
-  displayName: 'Build Docker Image'
+  displayName: 'Authenticate to Docker Hub'
   inputs:
-    command: 'build'
-    containerRegistry: 'dsc'  # Using the Docker service connection 'dsc'
-    repository: $(imageName)
-    dockerfile: $(dockerfilePath)
-    buildContext: $(Build.SourcesDirectory)
-    tags: $(tag)  # Tag image with build ID
-
-# Step 4: Push Docker image to Docker Hub
-- task: Docker@2
-  displayName: 'Push Docker Image to Docker Hub'
-  inputs:
-    command: 'push'
+    command: 'login'
     containerRegistry: 'dsc'  # Docker Hub service connection 'dsc'
-    repository: $(imageName)
-    tags: $(tag)
+
+# Step 4: Build and push Docker image with multi-platform support (amd64 and arm64)
+- script: |
+    docker buildx create --use || true  # Create and use a builder instance if not already available
+    docker buildx build --platform linux/amd64,linux/arm64 \
+      -t $(acrLoginServer)/$(imageName):$(tag) \
+      -t $(acrLoginServer)/$(imageName):latest \
+      --push .  # Push images to Docker Hub
+  displayName: 'Build and push multi-platform Docker image to Docker Hub'
 
 # Step 5: Get AKS credentials and configure kubectl
 - task: AzureCLI@2
@@ -76,4 +72,4 @@ steps:
     kubernetesCluster: $(aksCluster)  # AKS cluster name
     namespace: $(kubernetesNamespace)  # Kubernetes namespace
     command: 'apply'
-    arguments: '-f $(deploymentFile)'  # Path to your Kubernetes deployment file
+    arguments:
