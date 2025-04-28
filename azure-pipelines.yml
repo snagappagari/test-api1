@@ -6,11 +6,13 @@ pool:
 
 variables:
   imageName: 'test-api1'  # Docker image name
+  acrLoginServer: 'acrallnew.azurecr.io'  # ACR login server URL (if you use Azure ACR, otherwise ignore)
   tag: '$(Build.BuildId)'  # Image tag based on build ID
   azureSubscription: 'sc-new'  # Your Azure service connection name
+  acrName: 'acrallnew'  # ACR name (if you use Azure ACR, otherwise ignore)
   resourceGroup: 'devops-connection'  # Resource group where AKS is located
   aksCluster: 'aks-all'  # AKS cluster name
-  dockerServiceConnection: 'dsc'  # Docker service connection name
+  containerRegistry: 'dsc'  # Docker Hub service connection name
   dockerfilePath: './Dockerfile'  # Path to your Dockerfile
   kubernetesNamespace: 'default'  # Kubernetes namespace for deployment
   deploymentFile: 'deployment.yaml'  # Path to your Kubernetes deployment YAML file
@@ -38,18 +40,18 @@ steps:
   displayName: 'Build Docker Image'
   inputs:
     command: 'build'
-    containerRegistry: '$(dockerServiceConnection)'  # Docker service connection
+    containerRegistry: 'dsc'  # Using the Docker service connection 'dsc'
     repository: $(imageName)
     dockerfile: $(dockerfilePath)
-    buildContext: $(Build.SourcesDirectory)  # Path to your project source
+    buildContext: $(Build.SourcesDirectory)
     tags: $(tag)  # Tag image with build ID
 
-# Step 4: Push Docker image to Azure Container Registry (ACR)
+# Step 4: Push Docker image to Docker Hub
 - task: Docker@2
-  displayName: 'Push Docker Image to ACR'
+  displayName: 'Push Docker Image to Docker Hub'
   inputs:
     command: 'push'
-    containerRegistry: '$(dockerServiceConnection)'  # Docker service connection
+    containerRegistry: 'dsc'  # Docker Hub service connection 'dsc'
     repository: $(imageName)
     tags: $(tag)
 
