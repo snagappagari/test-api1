@@ -20,12 +20,9 @@ variables:
 
 steps:
 
-# Step 1: Checkout code from GitHub repository
-- task: Checkout@1
+# Step 1: Checkout code from the repository that triggered the pipeline
+- checkout: self
   displayName: 'Checkout Code'
-  inputs:
-    repository: 'https://github.com/snagappagari/test-api1.git'
-    ref: 'refs/heads/main'
 
 # Step 2: Build the project using Maven
 - task: Maven@3
