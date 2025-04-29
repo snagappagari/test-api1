@@ -28,9 +28,12 @@ steps:
 - task: Maven@3
   displayName: 'Build the project with Maven'
   inputs:
-    mavenPomFile: 'pom.xml'  # Path to the Maven `pom.xml` file
-    goals: 'clean package'  # Clean and package the project
-    options: '-DskipTests'  # Optionally skip tests to speed up the build
+    mavenPomFile: 'pom.xml'           # Path to the Maven pom.xml file
+    goals: 'clean package'            # Clean and package the project
+    options: '-DskipTests'            # Skip unit tests during the build
+  env:
+    JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+    PATH: /usr/lib/jvm/java-21-openjdk-amd64/bin:$(PATH)
 
 # Step 3: Install Node.js (if necessary, depending on project)
 - task: NodeTool@0
