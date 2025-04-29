@@ -5,22 +5,22 @@ pool:
   name: MySelfHostedPool  # Your self-hosted agent pool
 
 variables:
-  imageName: 'test-api1'
-  acrLoginServer: 'acrallnew.azurecr.io'
-  tag: '$(Build.BuildId)'
-  azureSubscription: 'sc-new'
-  acrName: 'acrallnew'
-  resourceGroup: 'devops-connection'
-  aksCluster: 'aks-all'
-  containerRegistry: '$(acrLoginServer)'
-  dockerfilePath: './Dockerfile'
-  kubernetesNamespace: 'default'
-  deploymentFile: 'deployment.yaml'
-  mavenOptions: '-DskipTests'
+  imageName: 'test-api1'  # Docker image name
+  acrLoginServer: 'acrallnew.azurecr.io'  # ACR login server
+  tag: '$(Build.BuildId)'  # Image tag based on build ID
+  azureSubscription: 'sc-new'  # Your Azure service connection name
+  acrName: 'acrallnew'  # ACR name
+  resourceGroup: 'devops-connection'  # Resource group where AKS is located
+  aksCluster: 'aks-all'  # AKS cluster name
+  containerRegistry: '$(acrLoginServer)'  # ACR full login URL (no need for DockerHub)
+  dockerfilePath: './Dockerfile'  # Path to your Dockerfile
+  kubernetesNamespace: 'default'  # Kubernetes namespace for deployment
+  deploymentFile: 'deployment.yaml'  # Path to your Kubernetes deployment YAML file
+  mavenOptions: '-DskipTests'  # Maven options (skip tests for faster builds, adjust as needed)
 
 steps:
 
-# Step 1: Checkout code
+# Step 1: Checkout code from the repository that triggered the pipeline
 - checkout: self
   displayName: 'Checkout Code'
 
@@ -28,58 +28,42 @@ steps:
 - task: Maven@3
   displayName: 'Build the project with Maven'
   inputs:
-    mavenPomFile: 'pom.xml'
-    goals: 'clean package'
-    options: '-DskipTests'
+    mavenPomFile: 'pom.xml'           # Path to the Maven pom.xml file
+    goals: 'clean package'            # Clean and package the project
+    options: '-DskipTests'            # Skip unit tests during the build
   env:
     JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
     PATH: /usr/lib/jvm/java-21-openjdk-amd64/bin:$(PATH)
 
-# Step 3: Install Node.js
+# Step 3: Install Node.js (if necessary, depending on project)
 - task: NodeTool@0
   displayName: 'Install Node.js'
   inputs:
-    versionSpec: '20.x'
+    versionSpec: '20.x'  # Specify Node.js version
     addToPath: true
 
-# ✅ Step 4: Login to Azure Container Registry
-- task: AzureCLI@2
-  displayName: 'Login to Azure Container Registry'
-  inputs:
-    azureSubscription: $(azureSubscription)
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az acr login --name $(acrName)
-
-# Step 5: Build and push Docker image with multi-platform support
+# Step 4: Build and push Docker image to ACR with multi-platform support (amd64 and arm64)
 - script: |
-    docker buildx create --use || true
+    docker buildx create --use || true  # Create and use a builder instance if not already available
     docker buildx build --platform linux/amd64,linux/arm64 \
       -t $(acrLoginServer)/$(imageName):$(tag) \
       -t $(acrLoginServer)/$(imageName):latest \
-      --push .
+      --push .  # Push images to ACR
   displayName: 'Build and Push Multi-Platform Docker Image to ACR'
 
-# Step 6: Get AKS credentials
+# Step 5: Get AKS credentials and configure kubectl
 - task: AzureCLI@2
   displayName: 'Get AKS Credentials'
   inputs:
-    azureSubscription: $(azureSubscription)
+    azureSubscription: $(azureSubscription)  # Azure service connection
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
       az aks get-credentials --resource-group $(resourceGroup) --name $(aksCluster)
 
-# Step 7: Deploy to Kubernetes
-- task: Kubernetes@1
-  displayName: 'Deploy to Kubernetes (AKS)'
-  inputs:
-    connectionType: 'Azure Resource Manager'
-    azureSubscriptionEndpoint: $(azureSubscription)
-    azureResourceGroup: $(resourceGroup)
-    kubernetesCluster: $(aksCluster)
-    namespace: $(kubernetesNamespace)
-    command: 'apply'
-    useConfigurationFile: true
-    configuration: $(deploymentFile)
+# Step 6: Update the deployment YAML with the correct image tag and deploy to Kubernetes
+- script: |
+    # Replace the image tag in the Kubernetes deployment YAML
+    sed -i 's|acrallnew.azurecr.io/test-api1:latest|$(acrLoginServer)/$(imageName):$(tag)|' $(deploymentFile)
+    kubectl apply -f $(deploymentFile)  # Apply the updated deployment file
+  displayName: 'Update Deployment and Deploy to AKS'
