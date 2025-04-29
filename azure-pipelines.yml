@@ -29,7 +29,7 @@ steps:
   displayName: 'Build the project with Maven'
   inputs:
     mavenPomFile: 'pom.xml'  # Path to the Maven `pom.xml` file
-    goals: 'clean package $(mavenOptions)'  # Clean and package the project
+    goals: 'clean package'  # Clean and package the project
     options: '-DskipTests'  # Optionally skip tests to speed up the build
 
 # Step 3: Install Node.js (if necessary, depending on project)
