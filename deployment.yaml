@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: test-api1
-        image: acrallnew.azurecr.io/test-api1:${BUILD_ID}  # Use an env-style placeholder
+        image: acrallnew.azurecr.io/test-api1:$(tag)  # Change to $(tag) instead of ${BUILD_ID}
         ports:
         - containerPort: 8080
 
