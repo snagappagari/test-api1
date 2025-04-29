@@ -15,10 +15,9 @@ spec:
     spec:
       containers:
       - name: test-api1
-        image: acrallnew.azurecr.io/test-api1:$(tag)  # Change to $(tag) instead of ${BUILD_ID}
+        image: acrallnew.azurecr.io/test-api1:latest  # <- Use this for sed replacement
         ports:
         - containerPort: 8080
-
 ---
 apiVersion: v1
 kind: Service
